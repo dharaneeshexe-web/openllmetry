@@ -70,15 +70,20 @@ def _process_response_item(item, complete_response):
                 complete_response["usage"]["output_tokens"] = (
                     item_output_tokens + existing_output_tokens
                 )
-                item_reasoning_details = item_usage.get("output_tokens_details") or {}
-                existing_reasoning_details = (
-                    complete_response["usage"].get("output_tokens_details") or {}
+                item_reasoning = (
+                    (item_usage.get("output_tokens_details") or {}).get(
+                        "reasoning_tokens"
+                    )
+                    or 0
+                )
+                existing_reasoning = (
+                    (complete_response["usage"].get("output_tokens_details") or {}).get(
+                        "reasoning_tokens"
+                    )
+                    or 0
                 )
                 complete_response["usage"]["output_tokens_details"] = {
-                    "reasoning_tokens": (
-                        (item_reasoning_details.get("reasoning_tokens") or 0)
-                        + (existing_reasoning_details.get("reasoning_tokens") or 0)
-                    )
+                    "reasoning_tokens": max(item_reasoning, existing_reasoning)
                 }
             else:
                 complete_response["usage"] = item_usage

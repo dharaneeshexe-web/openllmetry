@@ -80,7 +80,7 @@ def test_set_token_usage_omits_reasoning_when_details_absent(tracer, span_export
     assert REASONING_TOKENS not in attributes
 
 
-def test_process_response_item_merges_streaming_reasoning_tokens():
+def test_process_response_item_keeps_latest_streaming_reasoning_tokens():
     complete_response = {"events": [], "model": "", "usage": {}, "id": ""}
 
     _process_response_item(
@@ -104,16 +104,26 @@ def test_process_response_item_merges_streaming_reasoning_tokens():
             type="message_delta",
             delta=SimpleNamespace(stop_reason="end_turn"),
             usage={
-                "output_tokens": 25,
+                "output_tokens": 16,
                 "output_tokens_details": {"reasoning_tokens": 15},
+            },
+        ),
+        complete_response,
+    )
+    _process_response_item(
+        SimpleNamespace(
+            type="message_delta",
+            delta=SimpleNamespace(stop_reason="end_turn"),
+            usage={
+                "output_tokens": 25,
+                "output_tokens_details": {"reasoning_tokens": 27},
             },
         ),
         complete_response,
     )
 
     usage = complete_response["usage"]
-    assert usage["output_tokens"] == 25
-    assert usage["output_tokens_details"]["reasoning_tokens"] == 15
+    assert usage["output_tokens_details"]["reasoning_tokens"] == 27
 
 
 def test_streaming_set_token_usage_emits_reasoning_tokens(tracer, span_exporter):
