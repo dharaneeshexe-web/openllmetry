@@ -61,16 +61,27 @@ def _process_response_item(item, complete_response):
         for event in complete_response.get("events", []):
             event["finish_reason"] = item.delta.stop_reason
         if item.usage:
+            item_usage = dict(item.usage)
             if "usage" in complete_response:
-                item_output_tokens = dict(item.usage).get("output_tokens", 0)
+                item_output_tokens = item_usage.get("output_tokens", 0)
                 existing_output_tokens = complete_response["usage"].get(
                     "output_tokens", 0
                 )
                 complete_response["usage"]["output_tokens"] = (
                     item_output_tokens + existing_output_tokens
                 )
+                item_reasoning_details = item_usage.get("output_tokens_details") or {}
+                existing_reasoning_details = (
+                    complete_response["usage"].get("output_tokens_details") or {}
+                )
+                complete_response["usage"]["output_tokens_details"] = {
+                    "reasoning_tokens": (
+                        (item_reasoning_details.get("reasoning_tokens") or 0)
+                        + (existing_reasoning_details.get("reasoning_tokens") or 0)
+                    )
+                }
             else:
-                complete_response["usage"] = dict(item.usage)
+                complete_response["usage"] = item_usage
 
 
 def _set_token_usage(
@@ -103,6 +114,15 @@ def _set_token_usage(
     )
     set_span_attribute(
         span, GenAIAttributes.GEN_AI_USAGE_CACHE_CREATION_INPUT_TOKENS, cache_creation_tokens
+    )
+
+    output_tokens_details = complete_response.get("usage", {}).get("output_tokens_details")
+    reasoning_tokens = None
+    if output_tokens_details:
+        reasoning_tokens = output_tokens_details.get("reasoning_tokens", None)
+
+    set_span_attribute(
+        span, SpanAttributes.GEN_AI_USAGE_REASONING_TOKENS, reasoning_tokens
     )
 
     set_span_attribute(

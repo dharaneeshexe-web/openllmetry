@@ -187,6 +187,16 @@ def is_stream_manager(response):
         )
 
 
+def _get_reasoning_tokens_from_usage(usage):
+    """Extract thinking/reasoning tokens from an Anthropic SDK usage object."""
+    if usage is None:
+        return None
+    output_tokens_details = getattr(usage, "output_tokens_details", None)
+    if output_tokens_details is None:
+        return None
+    return getattr(output_tokens_details, "reasoning_tokens", None)
+
+
 @dont_throw
 async def _aset_token_usage(
     span,
@@ -305,6 +315,11 @@ async def _aset_token_usage(
         cache_creation_tokens,
     )
 
+    reasoning_tokens = _get_reasoning_tokens_from_usage(usage)
+    set_span_attribute(
+        span, SpanAttributes.GEN_AI_USAGE_REASONING_TOKENS, reasoning_tokens
+    )
+
 
 @dont_throw
 def _set_token_usage(
@@ -419,6 +434,11 @@ def _set_token_usage(
         span,
         GenAIAttributes.GEN_AI_USAGE_CACHE_CREATION_INPUT_TOKENS,
         cache_creation_tokens,
+    )
+
+    reasoning_tokens = _get_reasoning_tokens_from_usage(usage)
+    set_span_attribute(
+        span, SpanAttributes.GEN_AI_USAGE_REASONING_TOKENS, reasoning_tokens
     )
 
 
