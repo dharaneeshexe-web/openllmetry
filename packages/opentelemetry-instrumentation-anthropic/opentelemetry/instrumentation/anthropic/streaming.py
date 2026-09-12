@@ -32,6 +32,12 @@ logger = logging.getLogger(__name__)
 
 @dont_throw
 def _process_response_item(item, complete_response):
+    """Accumulate a single Anthropic stream *item* into *complete_response*.
+
+    Handles message_start, content_block_start, content_block_delta, and
+    message_delta events. Message-delta usage keeps the latest cumulative
+    reasoning-token count while summing output tokens.
+    """
     if item.type == "message_start":
         complete_response["model"] = item.message.model
         complete_response["usage"] = dict(item.message.usage)
@@ -98,6 +104,7 @@ def _set_token_usage(
     token_histogram: Histogram = None,
     choice_counter: Counter = None,
 ):
+    """Record token-usage, reasoning-token, model, and choice metrics from a completed streaming response."""
     cache_read_tokens = (
         complete_response.get("usage", {}).get("cache_read_input_tokens", 0) or 0
     )
@@ -195,6 +202,7 @@ def _resolve_stream_token_usage(complete_response, instance, kwargs):
 
 
 def _handle_streaming_response(span, event_logger, complete_response):
+    """Emit streaming response events or set *span* streaming response attributes."""
     if should_emit_events() and event_logger:
         emit_streaming_response_events(event_logger, complete_response)
     else:

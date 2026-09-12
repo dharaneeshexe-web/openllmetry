@@ -23,6 +23,7 @@ REASONING_TOKENS = SpanAttributes.GEN_AI_USAGE_REASONING_TOKENS
 
 
 def _make_usage(**overrides):
+    """Build a stub Anthropic usage object, overriding any supplied fields."""
     usage = {
         "input_tokens": 10,
         "output_tokens": 25,
@@ -35,6 +36,7 @@ def _make_usage(**overrides):
 
 
 def _make_response(usage):
+    """Build a stub Anthropic message response object around *usage*."""
     return SimpleNamespace(
         usage=usage,
         content=[SimpleNamespace(type="text", text="hi")],
@@ -44,15 +46,18 @@ def _make_response(usage):
 
 
 def _finished_span_attributes(span_exporter):
+    """Return the attributes of the first finished span exported by *span_exporter*."""
     return dict(span_exporter.get_finished_spans()[0].attributes)
 
 
 @pytest.fixture
 def tracer(tracer_provider):
+    """Provide a named tracer backed by the *tracer_provider* fixture."""
     return tracer_provider.get_tracer("test-reasoning-usage")
 
 
 def test_set_token_usage_emits_reasoning_tokens(tracer, span_exporter):
+    """Sync non-streaming responses must emit gen_ai.usage.reasoning_tokens."""
     with tracer.start_as_current_span("test") as span:
         _set_token_usage(span, None, {}, _make_response(_make_usage()))
 
@@ -63,6 +68,7 @@ def test_set_token_usage_emits_reasoning_tokens(tracer, span_exporter):
 
 @pytest.mark.asyncio
 async def test_aset_token_usage_emits_reasoning_tokens(tracer, span_exporter):
+    """Async non-streaming responses must emit gen_ai.usage.reasoning_tokens."""
     with tracer.start_as_current_span("test") as span:
         await _aset_token_usage(span, None, {}, _make_response(_make_usage()))
 
@@ -71,16 +77,16 @@ async def test_aset_token_usage_emits_reasoning_tokens(tracer, span_exporter):
 
 
 def test_set_token_usage_omits_reasoning_when_details_absent(tracer, span_exporter):
+    """Reasoning tokens must be omitted when output_tokens_details is absent."""
     with tracer.start_as_current_span("test") as span:
-        _set_token_usage(
-            span, None, {}, _make_response(_make_usage(output_tokens_details=None))
-        )
+        _set_token_usage(span, None, {}, _make_response(_make_usage(output_tokens_details=None)))
 
     attributes = _finished_span_attributes(span_exporter)
     assert REASONING_TOKENS not in attributes
 
 
 def test_process_response_item_keeps_latest_streaming_reasoning_tokens():
+    """Streaming must retain the latest cumulative reasoning-token count, not a sum."""
     complete_response = {"events": [], "model": "", "usage": {}, "id": ""}
 
     _process_response_item(
@@ -127,6 +133,7 @@ def test_process_response_item_keeps_latest_streaming_reasoning_tokens():
 
 
 def test_streaming_set_token_usage_emits_reasoning_tokens(tracer, span_exporter):
+    """Streaming span attributes must include the accumulated reasoning-token count."""
     complete_response = {
         "events": [],
         "model": "claude-3-7-sonnet-20250219",
